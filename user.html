@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Chat room For User</title>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB"
+        crossorigin="anonymous">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T"
+        crossorigin="anonymous"></script>
+
+
+    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js"></script>
+
+    <script src="lib/firebaseinfo.js"></script>
+
+    <script>
+        // // Initialize Firebase
+        // var config = {
+        //     apiKey:             "****************",
+        //     authDomain:         "****************",
+        //     databaseURL:        "****************",
+        //     projectId:          "****************",
+        //     storageBucket:      "****************",
+        //     messagingSenderId:  "****************"
+        // };
+        firebase.initializeApp(config);
+        var db = firebase.firestore();
+
+        var _newtestCount = 0;
+
+        var _usertype = "user";
+
+        var _unsubscribe = function(){console.log("Stop")};
+    </script>
+
+    <script>
+        /**
+        *gotolastrow
+        */
+        function gotolastrow() {
+            $('#messagelist').animate({ scrollTop: $('#messagelist')[0].scrollHeight }, 'fast');
+        }
+
+        /**
+        *listionCom
+        */
+        function chatListen(jobid, userid) {
+            _unsubscribe = db.collection("rooms").doc("jobid" + jobid + "userid" + userid).collection("messages").orderBy("timestamp").limit(100)
+                .onSnapshot(function (snapshot) {
+                    snapshot.docChanges.forEach(function (change) {
+                        if (change.type === "added") {
+                            console.log("New city: ", change.doc.data(), "_newtestCount:", _newtestCount);
+
+                            var tempObj = change.doc.data();
+
+                            var tempClassName = tempObj.from == "user" ? "p-3 mb-2 bg-primary text-white text-left" : "p-3 mb-2 bg-warning text-dark text-right";
+
+                            $('#messagelist').html($('#messagelist').html() + '<div class="' + tempClassName + '">' + tempObj.msg + '</div>');
+                            gotolastrow();
+
+                        }
+                        if (change.type === "modified") {
+                            console.log("Modified city: ", change.doc.data(), "_newtestCount:", _newtestCount);
+                        }
+                        if (change.type === "removed") {
+                            console.log("Removed city: ", change.doc.data(), "_newtestCount:", _newtestCount);
+                        }
+                    });
+                });
+        }
+
+        /**
+        *sendmsg
+        */
+        function sendmsg() {
+            var msg = $('#msgtext').val();
+            var comid = $('#comid').val();
+            var jobid = $('#jobid').val();
+            var userid = $('#userid').val();
+
+            var roomname = 'jobid' + jobid + 'userid' + userid;
+
+            var roomRef = db.collection('rooms').doc(roomname);
+            roomRef.set({
+                comid: comid,
+                jobid: jobid,
+                userid: userid,
+                isnewcommsg: _usertype == 'user'?true:false,
+                isnewusermsg: _usertype == 'user'?false:true,
+                timestamp: Date.now(),
+                infos: {
+                    jobinfo: {
+                        title: "abcdefg"
+                    },
+                    userinfo: {
+                        username: "Pengfei Tang"
+                    }
+                },
+
+            })
+            .then(function () {
+                console.log("Document successfully written!");
+            })
+            .catch(function (error) {
+                console.error("Error writing document: ", error);
+            });
+
+
+            var messageRef = roomRef.collection('messages')
+            messageRef.add({
+                from: _usertype,
+                msg: msg,
+                timestamp: Date.now()
+            })
+            .then(function () {
+                console.log("Document successfully written!");
+            })
+            .catch(function (error) {
+                console.error("Error writing document: ", error);
+            });
+
+            $('#msgtext').val("");
+
+        }
+
+        /**
+        *roomlistListen
+        */
+        function roomlistListen(objid){
+            db.collection("rooms").where(_usertype+"id", "==",objid).orderBy("timestamp")
+            .onSnapshot(function(snapshot) {
+
+                // $('#talkroomlist').html("");
+
+                snapshot.docChanges.forEach(function(change) {
+                    var tempObj = change.doc.data();
+                    var talkroomid = 'jobid'+tempObj.jobid+'userid'+tempObj.userid;
+                    var tempEventStr = 'onclick="changeRoom('+tempObj.jobid+','+tempObj.userid+');"';
+                    var tempEventColor = tempObj.isnewusermsg == true?'btn-warning':'btn-success';
+
+                    if (change.type === "added") {
+                        _newtestCount ++;
+                        console.log("New rooms: ", change.doc.data(),"_newtestCount:",_newtestCount);
+                        $('#talkroomlist').html('<button id="'+talkroomid+'" class="btn '+tempEventColor+' btn-block text-left" '+tempEventStr+'>'+
+                                                talkroomid+
+                                                '</button>'+$('#talkroomlist').html());
+
+                    }
+                    if (change.type === "modified") {
+                        console.log("Modified rooms: ", change.doc.data(),"_newtestCount:",_newtestCount);
+                        $("#"+talkroomid).remove();
+                        $('#talkroomlist').html('<button id="'+talkroomid+'" class="btn '+tempEventColor+' btn-block text-left" '+tempEventStr+'>'+
+                                                talkroomid+
+                                                '</button>'+$('#talkroomlist').html());
+                    }
+                    if (change.type === "removed") {
+                        _newtestCount --;
+                        console.log("Removed rooms: ", change.doc.data(),"_newtestCount:",_newtestCount);
+                    }
+                });
+            });
+        }
+
+        /**
+        *
+        **/
+        function changeRoom(jobid,userid){
+            $('#jobid').val(jobid);
+            $('#userid').val(userid);
+            
+            $('#messagelist').html("");
+
+            _unsubscribe();
+
+            chatListen(jobid, userid);
+        }
+
+    </script>
+
+    <script>
+        $(function () {
+            $('#sendbtn').on('click', sendmsg);
+
+            $('#msgtext').on('keypress',function(e){
+                if(e.which === 13){
+                    sendmsg();
+                }
+            });
+
+            chatListen($('#jobid').val(), $('#userid').val());
+
+            roomlistListen($('#'+_usertype+'id').val());
+
+        });
+    </script>
+
+</head>
+
+<body>
+    <div class="jumbotron jumbotron-fluid">
+        <div class="container">
+            <h1 class="display-4">Chat Room For User</h1>
+            <p class="lead">Use FireStore By Pengfei Tang</p>
+        </div>
+    </div>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">comid</span>
+                    </div>
+                    <input type="text" class="form-control" id="comid" value="3">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">jobid</span>
+                    </div>
+                    <input type="text" class="form-control" id="jobid" value="4">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">userid</span>
+                    </div>
+                    <input type="text" class="form-control" id="userid" value="5">
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col">
+                        <div id="messagelist" style="height: 500px;overflow: hidden;border: 1px lightgray solid;padding: 20px;overflow-y: auto;">
+                            <!-- <div class="p-3 mb-2 bg-primary text-white text-left">
+                                hello
+                            </div>
+                            <div class="p-3 mb-2 bg-warning text-dark text-right">
+                                bbbb
+                            </div> -->
+                        </div>
+                    </div>
+                </div>
+        
+                <hr>
+        
+                <div class="row">
+                    <div class="col">
+                        <div class="input-group mb-4">
+                            <input type="text" class="form-control" id="msgtext">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button" id="sendbtn">Send</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                    <div id="talkroomlist" style="height: 570px;overflow: hidden;border: 1px lightgray solid;padding: 20px;overflow-y: auto;">
+                        <!-- <button class="btn btn-success btn-block text-left">
+                            hello
+                        </button> -->
+                    </div>
+            </div>
+            
+        </div>
+
+        
+
+    </div>
+</body>
+
+</html>
