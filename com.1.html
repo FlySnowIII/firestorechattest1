@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Chat room For Com</title>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB"
+        crossorigin="anonymous">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T"
+        crossorigin="anonymous"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js"></script>
+    
+    <script src="lib/firebaseinfo.js"></script>
+    <script src="lib/firestorechat.js"></script>
+
+    <script>
+        //医院様ID
+        var _comid      = 3;
+        //案件ID
+        var _jobid      = 4;
+        //ユーザーID
+        var _userid     = 5;
+        //アカウントType(com/user)
+        var _usertype   = "com";
+
+        //Document Init
+        $(function () {
+
+            // 1.トークルームリストを表示する
+            FirebaseChat.roomlistListen(_comid,_usertype,function(dataObj,type){
+                if (type === "removed"){ return; }
+
+                var talkroomid = 'jobid'+dataObj.jobid+'userid'+dataObj.userid;
+                var tempEventStr = 'onclick="changeRoom('+dataObj.jobid+','+dataObj.userid+');"';
+                var tempEventColor = dataObj.isnewcommsg == true?'btn-warning':'btn-success';
+
+                if (type === "modified"){
+                    $("#"+talkroomid).remove();
+                }
+
+                $('#talkroomlist').html('<button id="'+talkroomid+'" class="btn '+tempEventColor+' btn-block text-left" '+tempEventStr+'>'+
+                                        talkroomid+
+                                        '</button>'+$('#talkroomlist').html());
+
+            });
+
+            // 2.送信ボタン
+            $('#sendbtn').on('click', sendmsg);
+            $('#msgtext').on('keypress',function(e){
+                if(e.which === 13){
+                    sendmsg();
+                }
+            });
+            
+        });
+    </script>
+
+    <script>
+        /***
+         * changeRoom
+         **/ 
+        function changeRoom(jobid,userid){
+            _jobid = jobid;
+            _userid = userid;
+
+            $('#jobid').val(jobid);
+            $('#userid').val(userid);
+            
+            $('#messagelist').html("");
+
+            FirebaseChat.chatListen(jobid,userid,function(msgObj,type){
+                if (type === "added"){
+                    var tempClassName = msgObj.from == "com" ? "p-3 mb-2 bg-primary text-white text-left" : "p-3 mb-2 bg-warning text-dark text-right";
+                    $('#messagelist').html($('#messagelist').html() + '<div class="' + tempClassName + '">' + msgObj.msg + '</div>');
+
+                    gotolastrow();
+                }
+            });
+        }
+
+        /***
+         * gotolastrow
+         **/ 
+        function gotolastrow() {
+            $('#messagelist').animate({ scrollTop: $('#messagelist')[0].scrollHeight }, 'fast');
+        }
+
+        /***
+         * 
+         **/
+        function sendmsg(){
+            var msg = $('#msgtext').val();
+
+            var jobinfoJson = {
+                        title: "abcdefg"
+                    };
+
+            var userinfoJson = {
+                        username: "Pengfei Tang"
+                    };
+
+            FirebaseChat.sendmsg(_comid,_jobid,_userid,_usertype,msg,jobinfoJson,userinfoJson,function(){
+                $('#msgtext').val("");
+            });
+        } 
+    </script>
+
+</head>
+
+<body>
+    <div class="jumbotron jumbotron-fluid">
+        <div class="container">
+            <h1 class="display-4">Chat Room For Com</h1>
+            <p class="lead">Use FireStore By Pengfei Tang</p>
+        </div>
+    </div>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">comid</span>
+                    </div>
+                    <input type="text" class="form-control" id="comid" value="3">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">jobid</span>
+                    </div>
+                    <input type="text" class="form-control" id="jobid" value="4">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">userid</span>
+                    </div>
+                    <input type="text" class="form-control" id="userid" value="5">
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col">
+                        <div id="messagelist" style="height: 500px;overflow: hidden;border: 1px lightgray solid;padding: 20px;overflow-y: auto;">
+                            <!-- <div class="p-3 mb-2 bg-primary text-white text-left">
+                                hello
+                            </div>
+                            <div class="p-3 mb-2 bg-warning text-dark text-right">
+                                bbbb
+                            </div> -->
+                        </div>
+                    </div>
+                </div>
+        
+                <hr>
+        
+                <div class="row">
+                    <div class="col">
+                        <div class="input-group mb-4">
+                            <input type="text" class="form-control" id="msgtext">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button" id="sendbtn">Send</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                    <div id="talkroomlist" style="height: 570px;overflow: hidden;border: 1px lightgray solid;padding: 20px;overflow-y: auto;">
+                        <!-- <button class="btn btn-success btn-block text-left">
+                            hello
+                        </button> -->
+                    </div>
+            </div>
+            
+        </div>
+
+        
+
+    </div>
+</body>
+
+</html>
